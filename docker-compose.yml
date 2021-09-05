@@ -1,0 +1,43 @@
+version: '3.4'
+
+services:
+  backup:
+    image: kaiede/minecraft-bedrock-backup
+    restart: always
+    depends_on:
+      - "bedrock_axel"
+    environment:
+        BACKUP_INTERVAL: "1h"
+        TZ: "Europe/Stockholm"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./backups:/backups
+      - ./axel_data:/bedrock_axel
+  bedrock_axel:
+    image: itzg/minecraft-bedrock-server
+    container_name: bedrock_axel
+    restart: always
+    environment:
+      SERVER_NAME: "Den bästa servern någonsin"
+      EULA: "TRUE"
+      GAMEMODE: survival
+      DIFFICULTY: hard
+      LEVEL_SEED: Axel
+      LEVEL_NAME: Axel
+      ONLINE_MODE: "true"
+      VIEW_DISTANCE: 32
+      TICK_DISTANCE: 12
+      PLAYER_IDLE_TIMEOUT: 0
+    ports:
+      - 19132:19132/udp
+#      - 39132:39132
+#      - 39132:39132/udp
+#      - 39133:39133
+#      - 39133:39133/udp
+    volumes:
+      - ./axel_data:/data
+    stdin_open: true
+    tty: true
+    sysctls:
+      net.ipv4.ip_local_port_range: 39132 39133
+
