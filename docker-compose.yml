@@ -5,19 +5,29 @@ services:
     image: kaiede/minecraft-bedrock-backup
     restart: always
     depends_on:
-      - "bedrock_axel"
+      - bedrock_axel
     environment:
-        BACKUP_INTERVAL: "1h"
-        TZ: "Europe/Stockholm"
+      BACKUP_INTERVAL: "3h"
+      TZ: "Europe/Stockholm"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backups:/backups
       - ./axel_data:/bedrock_axel
+    command: ["/bin/sh","-c","sleep 10; exec /entrypoint.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]   # always healthy
+      interval: 1m
+      timeout: 5s
+      retries: 1
+      start_period: 10s
+
+
   bedrock_axel:
     image: itzg/minecraft-bedrock-server
     container_name: bedrock_axel
     restart: always
     environment:
+      TZ: "Europe/Stockholm"
       SERVER_NAME: "Den bästa servern någonsin"
       EULA: "TRUE"
       GAMEMODE: survival
@@ -29,15 +39,53 @@ services:
       TICK_DISTANCE: 12
       PLAYER_IDLE_TIMEOUT: 0
     ports:
-      - 19132:19132/udp
-#      - 39132:39132
-#      - 39132:39132/udp
-#      - 39133:39133
-#      - 39133:39133/udp
+      - "19132:19132/udp"
     volumes:
-      - ./axel_data:/data
+      - "./axel_data:/data"
     stdin_open: true
     tty: true
-    sysctls:
-      net.ipv4.ip_local_port_range: 39132 39133
+    # OPTION A: remove sysctls completely (recommended)
+    # sysctls: {}
+    # OPTION B: if you insist on constraining ephemeral ports, uncomment:
+    # sysctls:
+    #   net.ipv4.ip_local_port_range: 40000 41999
+    healthcheck:
+      test: ["CMD", "mc-monitor", "status-bedrock", "--host", "0.0.0.0", "--port", "19132", "-retry-limit", "5", "-retry-interval", "10s"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
 
+  pro_server:
+    image: itzg/minecraft-bedrock-server
+    container_name: bedrock_pro_server
+    restart: always
+    environment:
+      TZ: "Europe/Stockholm"
+      SERVER_NAME: "Den näst bästa servern någonsin"
+      EULA: "TRUE"
+      GAMEMODE: survival
+      DIFFICULTY: hard
+      LEVEL_SEED: pro_server
+      LEVEL_NAME: pro_server
+      ONLINE_MODE: "true"
+      VIEW_DISTANCE: 32
+      TICK_DISTANCE: 12
+      PLAYER_IDLE_TIMEOUT: 0
+    ports:
+      - "19142:19132/udp"
+    volumes:
+      - "./pro_server:/data"
+    stdin_open: true
+    tty: true
+    # OPTION A (recommended): remove
+    # sysctls: {}
+    # OPTION B: non-overlapping widened range
+    # sysctls:
+    #   net.ipv4.ip_local_port_range: 42000 43999
+    healthcheck:
+      test: ["CMD", "mc-monitor", "status-bedrock", "--host", "0.0.0.0", "--port", "19132", "-retry-limit", "5", "-retry-interval", "10s"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
