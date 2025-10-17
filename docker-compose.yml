@@ -21,7 +21,6 @@ services:
       retries: 1
       start_period: 10s
 
-
   bedrock_axel:
     image: itzg/minecraft-bedrock-server
     container_name: bedrock_axel
@@ -44,11 +43,6 @@ services:
       - "./axel_data:/data"
     stdin_open: true
     tty: true
-    # OPTION A: remove sysctls completely (recommended)
-    # sysctls: {}
-    # OPTION B: if you insist on constraining ephemeral ports, uncomment:
-    # sysctls:
-    #   net.ipv4.ip_local_port_range: 40000 41999
     healthcheck:
       test: ["CMD", "mc-monitor", "status-bedrock", "--host", "0.0.0.0", "--port", "19132", "-retry-limit", "5", "-retry-interval", "10s"]
       interval: 30s
@@ -78,14 +72,25 @@ services:
       - "./pro_server:/data"
     stdin_open: true
     tty: true
-    # OPTION A (recommended): remove
-    # sysctls: {}
-    # OPTION B: non-overlapping widened range
-    # sysctls:
-    #   net.ipv4.ip_local_port_range: 42000 43999
     healthcheck:
       test: ["CMD", "mc-monitor", "status-bedrock", "--host", "0.0.0.0", "--port", "19132", "-retry-limit", "5", "-retry-interval", "10s"]
       interval: 30s
       timeout: 5s
       retries: 6
       start_period: 60s
+
+  # --- Web GUI for your containers (keeps your backup + servers exactly as-is) ---
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9000:9000"            # HTTP on host:9000 → container:9000
+    command: ["--http-enabled"]# turn on the HTTP listener
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data   # persists Portainer settings
+
+
+volumes:
+  portainer_data:

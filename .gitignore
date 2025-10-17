@@ -5,6 +5,7 @@
 
 # User-specific files
 axel_data/
+pro_server/
 backups/
 *.rsuser
 *.suo
