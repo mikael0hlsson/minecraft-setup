@@ -2,24 +2,26 @@ version: '3.4'
 
 services:
   backup:
-    image: kaiede/minecraft-bedrock-backup
-    restart: always
-    depends_on:
-      - bedrock_axel
-    environment:
-      BACKUP_INTERVAL: "3h"
-      TZ: "Europe/Stockholm"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./backups:/backups
-      - ./axel_data:/bedrock_axel
-    command: ["/bin/sh","-c","sleep 10; exec /entrypoint.sh"]
-    healthcheck:
-      test: ["CMD-SHELL", "exit 0"]   # always healthy
-      interval: 1m
-      timeout: 5s
-      retries: 1
-      start_period: 10s
+   image: kaiede/minecraft-bedrock-backup
+   restart: always
+   depends_on:
+     - bedrock_axel
+   environment:
+     TZ: "Europe/Stockholm"
+   volumes:
+     - ./axel_data:/data             # <-- world & server data (read-only)
+     - ./backups:/backups            # <-- where backups are written
+     - ./backups/config:/config
+     # Only needed if you want auto-discovery via Docker API:
+     - /var/run/docker.sock:/var/run/docker.sock
+   command: ["/bin/sh","-c","sleep 10; exec /entrypoint.sh"]
+   healthcheck:
+     test: ["CMD-SHELL", "exit 0"]
+     interval: 1m
+     timeout: 5s
+     retries: 1
+     start_period: 10s
+
 
   bedrock_axel:
     image: itzg/minecraft-bedrock-server
@@ -34,13 +36,22 @@ services:
       LEVEL_SEED: Axel
       LEVEL_NAME: Axel
       ONLINE_MODE: "true"
-      VIEW_DISTANCE: 32
-      TICK_DISTANCE: 12
+
+      # Lighter + smoother
+      VIEW_DISTANCE: 10
+      TICK_DISTANCE: 6
+
+      # Prefer defaults for compression/threads unless profiled
+      # SERVER_AUTHORITATIVE_MOVEMENT: "server-auth"
+      CONTENT_LOG_FILE_ENABLED: "false"
       PLAYER_IDLE_TIMEOUT: 0
+
+      # Optional: enable query for external monitors/mc-monitor
+      ENABLE_QUERY: "true"
     ports:
       - "19132:19132/udp"
     volumes:
-      - "./axel_data:/data"
+      - ./axel_data:/data
     stdin_open: true
     tty: true
     healthcheck:
@@ -49,35 +60,43 @@ services:
       timeout: 5s
       retries: 6
       start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 6G
+        reservations:
+          cpus: '2'
+          memory: 4G
 
-  pro_server:
-    image: itzg/minecraft-bedrock-server
-    container_name: bedrock_pro_server
-    restart: always
-    environment:
-      TZ: "Europe/Stockholm"
-      SERVER_NAME: "Den näst bästa servern någonsin"
-      EULA: "TRUE"
-      GAMEMODE: survival
-      DIFFICULTY: hard
-      LEVEL_SEED: pro_server
-      LEVEL_NAME: pro_server
-      ONLINE_MODE: "true"
-      VIEW_DISTANCE: 32
-      TICK_DISTANCE: 12
-      PLAYER_IDLE_TIMEOUT: 0
-    ports:
-      - "19142:19132/udp"
-    volumes:
-      - "./pro_server:/data"
-    stdin_open: true
-    tty: true
-    healthcheck:
-      test: ["CMD", "mc-monitor", "status-bedrock", "--host", "0.0.0.0", "--port", "19132", "-retry-limit", "5", "-retry-interval", "10s"]
-      interval: 30s
-      timeout: 5s
-      retries: 6
-      start_period: 60s
+#  pro_server:
+#    image: itzg/minecraft-bedrock-server
+#    container_name: bedrock_pro_server
+#    restart: always
+#    environment:
+#      TZ: "Europe/Stockholm"
+#      SERVER_NAME: "Den näst bästa servern någonsin"
+#      EULA: "TRUE"
+#      GAMEMODE: survival
+#      DIFFICULTY: hard
+#      LEVEL_SEED: pro_server
+#      LEVEL_NAME: pro_server
+#      ONLINE_MODE: "true"
+#      VIEW_DISTANCE: 32
+#      TICK_DISTANCE: 12
+#      PLAYER_IDLE_TIMEOUT: 0
+#    ports:
+#      - "19142:19132/udp"
+#    volumes:
+#      - "./pro_server:/data"
+#    stdin_open: true
+#    tty: true
+#    healthcheck:
+#      test: ["CMD", "mc-monitor", "status-bedrock", "--host", "0.0.0.0", "--port", "19132", "-retry-limit", "5", "-retry-interval", "10s"]
+#      interval: 30s
+#      timeout: 5s
+#      retries: 6
+#      start_period: 60s
 
   # --- Web GUI for your containers (keeps your backup + servers exactly as-is) ---
   portainer:
@@ -90,7 +109,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data   # persists Portainer settings
-
 
 volumes:
   portainer_data:
